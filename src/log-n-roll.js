@@ -146,7 +146,7 @@ function getLogger(logName, logLevel) {
       roller = pluginsRoller;
     }
 
-    properties[plugin][logName] = props || {};
+    properties[plugin][logName] = Object.assign({}, properties[plugin][logName], props);
     rebuildMethods(logger);
   };
 

@@ -69,3 +69,55 @@ Root logger before use
 [   +15ms] DEBUG (child): Time diff for child logger. Sum = 2302585.0930085
 [15:00:07] INFO (another): Another logger has extended the plugin from the root logger
 ```
+
+## Transports
+
+**filefransport.js**
+```javascript
+const fs = require('fs');
+const util = require('util');
+
+module.exports = function fileTransport(logger, props) {
+  props = Object.assign(
+    {
+      file: 'app.log',
+      console: true,
+    },
+    props,
+  );
+
+  return (args) => {
+    fs.appendFile(props.file, `${util.format(...args)}\n`, (err) => {
+      if (err) throw err;
+    });
+    if (props.console) return args;
+    return null;
+  };
+};
+```
+
+**main.js**
+```javascript
+const log = require('../lib/log-n-roll');
+const fileTransport = require('../examples/filetransport');
+
+log.use(log.prefixer);
+log.use(fileTransport, { file: 'my.log' });
+
+log.info('Hello, file!');
+
+log.use(fileTransport, { console: false });
+
+log.info('Goodbye, console!');
+```
+
+**Console output:**
+```
+[15:58:26] INFO: Hello, file!
+```
+
+**my.log:**
+```
+[15:58:26] INFO: Hello, file!
+[15:58:26] INFO: Goodbye, console!
+```

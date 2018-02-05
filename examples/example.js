@@ -1,30 +1,31 @@
 const log = require('../lib/log-n-roll');
 
-const child = log('child');
+log.trace('Trace shows stacktrace');
 
-(function StackTraceTestBeforeUse() {
-  child.trace('Stacktrace before use plugin');
-}());
+// Using the built-in plugin
+log.use(log.prefixer);
+log.trace('Using any number of plugins adds to the stacktrace only one extra line');
 
-child.use(log.prefixer);
-
-(function StackTraceTestAfterUse() {
-  child.trace('Stacktrace after use plugin');
-}());
-
-let sum = 0;
+// Loading the processor
+let sum = 2;
 for (let i = 0; i < 1000000; i++) {
-  sum += Math.log(10);
+  sum = Math.sqrt(sum);
 }
 
-log.info('Root logger before use');
+log.debug('Debug shows the time difference from the last call of any logger method');
+log.info('Placeholders are supported. Sum=%s', sum);
+log.warn('Warn message');
+log.error('Error message');
 
-log.use(log.prefixer);
-log.debug('Root logger debug message');
-log.info('Root logger info message');
-log.warn('Root logger warn message');
-log.error('Root logger error message');
+// Getting the named logger
+const child = log('child', 'warn');
+child.info('Messages below the level of the logger are ignored');
 
-child.debug('Time diff for child logger. Sum = %s', sum);
+child.level = 'info';
+child.info('The level of the logger can be changed at any time');
 
-child('another').info('Another logger has extended the plugin from the root logger');
+child('anotherone').info('Any logger can be obtained from any logger');
+log('anotherone').debug('Anotherone logger has extended the level from the "child" logger');
+child('anotherone').info('Anotherone logger has extended the plugins props from the root (not child) logger');
+
+child().info('Root logger can be obtained from any logger');

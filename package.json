@@ -9,12 +9,9 @@
     "node"
   ],
   "repository": "github:kutuluk/log-n-roll",
-  "bugs": {
-    "url": "https://github.com/kutuluk/log-n-roll/issues"
-  },
   "author": "Evgeniy Pavlov <mail@kutuluk.com>",
   "license": "MIT",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "source": "src/log-n-roll.js",
   "main": "dist/log-n-roll.js",
   "module": "dist/log-n-roll.m.js",
@@ -24,7 +21,7 @@
   ],
   "scripts": {
     "clean": "rimraf dist lib && mkdirp dist lib",
-    "microbundle": "microbundle && microbundle -o lib -f cjs --compress false",
+    "microbundle": "microbundle --name log && microbundle -o lib -f cjs --compress false",
     "build": "npm-run-all --silent clean microbundle",
     "lint": "eslint src",
     "test": "mocha",

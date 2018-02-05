@@ -11,9 +11,7 @@ module.exports = function fileTransport(logger, props) {
   );
 
   return (args) => {
-    fs.appendFile(props.file, `${util.format(...args)}\n`, (err) => {
-      if (err) throw err;
-    });
+    fs.appendFileSync(props.file, `${util.format(...args)}\n`);
     if (props.console) return args;
     return null;
   };

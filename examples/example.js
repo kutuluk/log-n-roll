@@ -1,4 +1,4 @@
-const log = require('../lib/log-n-roll');
+const log = require('../dist/log-n-roll');
 
 log.trace('Trace shows stacktrace');
 
@@ -6,18 +6,21 @@ log.trace('Trace shows stacktrace');
 log.use(log.prefixer);
 log.trace('Using any number of plugins adds to the stacktrace only one extra line');
 
+log.info("By default, the level of the root logger is 'trace'. All messages are displayed");
+
 // Loading the processor
-let sum = 2;
+let two = 2;
 for (let i = 0; i < 1000000; i++) {
-  sum = Math.sqrt(sum);
+  two *= two;
+  two = Math.sqrt(two);
 }
 
 log.debug('Debug shows the time difference from the last call of any logger method');
-log.info('Placeholders are supported. Sum=%s', sum);
+log.info('Placeholders are supported. Two = %s', two);
 log.warn('Warn message');
 log.error('Error message');
 
-// Getting the named logger
+// Getting the named logger and setting its level to 'warn'
 const child = log('child', 'warn');
 child.info('Messages below the level of the logger are ignored');
 

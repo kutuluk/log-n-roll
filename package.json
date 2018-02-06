@@ -1,6 +1,6 @@
 {
   "name": "log-n-roll",
-  "description": "Tiny <900b logger for fun logging",
+  "description": "Tiny <1kb logger for fun logging",
   "keywords": [
     "log",
     "logger",
@@ -11,7 +11,7 @@
   "repository": "github:kutuluk/log-n-roll",
   "author": "Evgeniy Pavlov <mail@kutuluk.com>",
   "license": "MIT",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "source": "src/log-n-roll.js",
   "main": "dist/log-n-roll.js",
   "module": "dist/log-n-roll.m.js",
@@ -22,6 +22,8 @@
   "scripts": {
     "clean": "rimraf dist lib && mkdirp dist lib",
     "microbundle": "microbundle --name log && microbundle -o lib -f cjs --compress false",
+    "plugins:stacktracer": "microbundle -i src/plugins/stacktracer.js -o plugins",
+    "plugins": "npm-run-all --silent plugins:*",
     "build": "npm-run-all --silent clean microbundle",
     "lint": "eslint src",
     "test": "mocha",

@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 
 const noop = () => {};
-const { defineProperty } = Object;
 const levels = ['trace', 'debug', 'info', 'warn', 'error', 'silent'];
 
 const plugins = [];
@@ -12,10 +11,12 @@ const loggers = {};
 // Wherever possible we want to bind, not wrap, to preserve stack traces
 function nativeRoller() {
   return (level) => {
+    if (typeof console === 'undefined') return noop;
+
     let nativeMethod = console[levels[level]] ? levels[level] : 'log';
     if (nativeMethod === 'debug') nativeMethod = 'log';
 
-    return console[nativeMethod].bind(console);
+    return console[nativeMethod] ? console[nativeMethod].bind(console) : noop;
   };
 }
 
@@ -23,12 +24,12 @@ function pluginsRoller(logger) {
   const loggerName = logger.sign;
   let prevTimestamp = 0;
 
-  const wrappers = [];
+  const rollers = [];
   plugins.forEach((plugin, index) => {
     const rootProps = properties[index][''];
     const loggerProps = properties[index][loggerName];
     if (rootProps || loggerProps) {
-      wrappers.push(plugin(logger, Object.assign({}, rootProps, loggerProps)));
+      rollers.push(plugin(logger, Object.assign({}, rootProps, loggerProps)));
     }
   });
 
@@ -42,18 +43,20 @@ function pluginsRoller(logger) {
       prevTimestamp = timestamp;
 
       const state = {
+        args,
         logger: loggerName,
         level,
         label,
         timestamp,
         delta,
+        roll: true,
       };
 
-      for (let i = 0; i < wrappers.length; i++) {
-        args = wrappers[i](args, state);
-        if (!args) return;
+      for (let i = 0; i < rollers.length; i++) {
+        rollers[i](state);
+        if (!state.roll) return;
       }
-      nativeMethod(...args);
+      nativeMethod(...state.args);
     };
   };
 }
@@ -67,94 +70,113 @@ function rebuildMethods(logger) {
   }
 }
 
-function prefixer(logger, props) {
-  props = Object.assign(
-    {
-      format(state) {
-        const timestamp = state.level === 1
-          ? `${`      +${state.delta}`.slice(-6)}ms`
-          : new Date(state.timestamp).toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, '$1');
-        return `[${timestamp}] ${state.label.toUpperCase()}${state.logger ? ` (${state.logger})` : ''}:`;
-      },
-    },
-    props,
-  );
+function applyPlugin(logger, plugin, props) {
+  if (typeof plugin !== 'function') {
+    throw new Error(`Invalid plugin: ${plugin}`);
+  }
 
-  return (args, state) => {
-    const prefix = props.format(state);
-    if (args.length && typeof args[0] === 'string') {
-      // concat prefix with first argument to support string substitutions
-      args[0] = `${prefix} ${args[0]}`;
-    } else {
-      args.unshift(prefix);
+  plugins.forEach((p, index) => {
+    if (p === plugin) {
+      plugin = index;
     }
-    return args;
-  };
+  });
+
+  if (typeof plugin !== 'number') {
+    // lazy plugging
+    plugin = plugins.push(plugin) - 1;
+    properties[plugin] = {};
+    roller = pluginsRoller;
+  }
+
+  properties[plugin][logger.sign] = Object.assign({}, properties[plugin][logger.sign], props);
+  rebuildMethods(logger);
 }
 
 function getLogger(logName, logLevel) {
-  function logger(name, level) {
+  const logger = (name, level) => {
     name = name || '';
     if (typeof name !== 'string') {
       throw new TypeError(`Invalid name: ${name}`);
     }
 
     return loggers[name] || getLogger(name, level || logger.level);
-  }
-
-  defineProperty(logger, 'sign', {
-    get() {
-      return logName;
-    },
-  });
-
-  defineProperty(logger, 'level', {
-    get() {
-      return logLevel;
-    },
-    set(lvl) {
-      let newLevel = lvl;
-
-      if (typeof newLevel === 'string') {
-        newLevel = levels.indexOf(newLevel.toLowerCase());
-      }
-
-      if (typeof newLevel === 'number' && newLevel >= 0 && newLevel < levels.length) {
-        logLevel = newLevel;
-        rebuildMethods(logger);
-      } else {
-        throw new Error(`Invalid level: ${lvl}`);
-      }
-    },
-  });
-
-  logger.use = (plugin, props) => {
-    if (typeof plugin !== 'function') {
-      throw new Error(`Invalid plugin: ${plugin}`);
-    }
-
-    plugins.forEach((p, index) => {
-      if (p === plugin) {
-        plugin = index;
-      }
-    });
-
-    if (typeof plugin !== 'number') {
-      // lazy plugging
-      plugin = plugins.push(plugin) - 1;
-      properties[plugin] = {};
-      roller = pluginsRoller;
-    }
-
-    properties[plugin][logName] = Object.assign({}, properties[plugin][logName], props);
-    rebuildMethods(logger);
   };
 
-  logger.prefixer = prefixer;
-  logger.level = logLevel;
+  Object.defineProperties(logger, {
+    sign: {
+      get() {
+        return logName;
+      },
+    },
+    level: {
+      get() {
+        return logLevel;
+      },
+      set(newLevel) {
+        let level = newLevel;
 
+        if (typeof level === 'string') {
+          level = levels.indexOf(level.toLowerCase());
+        }
+
+        if (typeof level === 'number' && level >= 0 && level < levels.length) {
+          logLevel = level;
+          rebuildMethods(logger);
+        } else {
+          throw new Error(`Invalid level: ${newLevel}`);
+        }
+      },
+    },
+    use: {
+      value: applyPlugin.bind(null, logger),
+      writable: false,
+    },
+  });
+
+  logger.level = logLevel;
   loggers[logName] = logger;
   return logger;
 }
 
-export default getLogger('', 0);
+const log = getLogger('', 0);
+
+Object.defineProperties(log, {
+  prefixer: {
+    value: (logger, props) => {
+      props = Object.assign(
+        {
+          format(state) {
+            const timestamp = state.level === 1
+              ? `${`      +${state.delta}`.slice(-6)}ms`
+              : new Date(state.timestamp).toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, '$1');
+            return `[${timestamp}] ${state.label.toUpperCase()}${state.logger ? ` (${state.logger})` : ''}:`;
+          },
+        },
+        props,
+      );
+
+      return (state) => {
+        const prefix = props.format(state);
+        const { args } = state;
+        if (args.length && typeof args[0] === 'string') {
+          // concat prefix with first argument to support string substitutions
+          args[0] = `${prefix} ${args[0]}`;
+        } else {
+          args.unshift(prefix);
+        }
+      };
+    },
+    writable: false,
+  },
+  levels: {
+    get() {
+      return levels.splice();
+    },
+  },
+  api: {
+    value: '0.1',
+    writable: false,
+  },
+});
+
+export default log;

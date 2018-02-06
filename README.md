@@ -1,11 +1,11 @@
 # log-n-roll
 
-Tiny <900b logger for fun logging.
+Tiny <1kb logger for fun logging.
 
 [![NPM version](https://img.shields.io/npm/v/log-n-roll.svg?style=flat-square)](https://www.npmjs.com/package/log-n-roll)[![Build Status](https://img.shields.io/travis/kutuluk/log-n-roll/master.svg?style=flat-square)](https://travis-ci.org/kutuluk/log-n-roll)
 
-- **Tiny:** weighs less than 900 bytes gzipped
-- **Pluggable:** one built-in plugin for pretty formatting and limitless possibilities for expansion
+- **Tiny:** weighs less than kilobyte gzipped
+- **Pluggable:** one built-in plugin for pretty formatting and limitless possibilities for extension
 
 ## Note
 
@@ -23,10 +23,10 @@ Then with a module bundler like [rollup](http://rollupjs.org/) or [webpack](http
 
 ```javascript
 // using ES6 modules
-import log from 'log-n-roll'
+import log from 'log-n-roll';
 
 // using CommonJS modules
-var log = require('log-n-roll')
+var log = require('log-n-roll');
 ```
 
 The [UMD](https://github.com/umdjs/umd) build is also available on [unpkg](https://unpkg.com):
@@ -40,7 +40,7 @@ You can find the library on `window.log`.
 ## Usage
 
 ```javascript
-const log = require('log-n-roll');
+const log = require('../dist/log-n-roll');
 
 log.trace('Trace shows stacktrace');
 
@@ -48,18 +48,21 @@ log.trace('Trace shows stacktrace');
 log.use(log.prefixer);
 log.trace('Using any number of plugins adds to the stacktrace only one extra line');
 
+log.info("By default, the level of the root logger is 'trace'. All messages are displayed");
+
 // Loading the processor
-let sum = 2;
+let two = 2;
 for (let i = 0; i < 1000000; i++) {
-  sum = Math.sqrt(sum);
+  two *= two;
+  two = Math.sqrt(two);
 }
 
 log.debug('Debug shows the time difference from the last call of any logger method');
-log.info('Placeholders are supported. Sum=%s', sum);
+log.info('Placeholders are supported. Two = %s', two);
 log.warn('Warn message');
 log.error('Error message');
 
-// Getting the named logger
+// Getting the named logger and setting its level to 'warn'
 const child = log('child', 'warn');
 child.info('Messages below the level of the logger are ignored');
 
@@ -73,73 +76,156 @@ child('anotherone').info('Anotherone logger has extended the plugins props from 
 child().info('Root logger can be obtained from any logger');
 ```
 
-Output:
-
+**Output:**
 ```
 Trace: Trace shows stacktrace
     at Object.<anonymous> (C:\Users\u36\Dropbox\kutuluk\log-n-roll\examples\example.js:3:5)
     ...
-Trace: [17:59:14] TRACE: Using any number of plugins adds to the stacktrace only one extra line
-    at Function.trace (C:\Users\u36\Dropbox\kutuluk\log-n-roll\lib\log-n-roll.js:49:26)
+Trace: [15:57:11] TRACE: Using any number of plugins adds to the stacktrace only one extra line
+    at Function.trace (C:\Users\u36\Dropbox\kutuluk\log-n-roll\dist\log-n-roll.js:1:712)
     at Object.<anonymous> (C:\Users\u36\Dropbox\kutuluk\log-n-roll\examples\example.js:7:5)
     ...
-[   +61ms] DEBUG: Debug shows the time difference from the last call of any logger method
-[17:59:14] INFO: Placeholders are supported. Sum=1
-[17:59:14] WARN: Warn message
-[17:59:14] ERROR: Error message
-[17:59:14] INFO (child): The level of the logger can be changed at any time
-[17:59:14] INFO (anotherone): Any logger can be obtained from any logger
-[17:59:14] INFO (anotherone): Anotherone logger has extended the plugins props from the root (not child) logger
-[17:59:14] INFO: Root logger can be obtained from any logger
+[15:57:11] INFO: By default, the level of the root logger is 'trace'. All messages are displayed
+[   +15ms] DEBUG: Debug shows the time difference from the last call of any logger method
+[15:57:11] INFO: Placeholders are supported. Two = 2
+[15:57:11] WARN: Warn message
+[15:57:11] ERROR: Error message
+[15:57:11] INFO (child): The level of the logger can be changed at any time
+[15:57:11] INFO (anotherone): Any logger can be obtained from any logger
+[15:57:11] INFO (anotherone): Anotherone logger has extended the plugins props from the root (not child) logger
+[15:57:11] INFO: Root logger can be obtained from any logger
 ```
 
-## Plugins
+## Plugin examples
 
-**filetransport.js**
+**stacktracer.js**
 ```javascript
-const fs = require('fs');
-const util = require('util');
+function getStackTrace() {
+  try {
+    throw new Error();
+  } catch (trace) {
+    return trace.stack;
+  }
+}
 
-module.exports = function fileTransport(logger, props) {
+module.exports = (logger, props) => {
+  // Return noop plugin if stacktrace support is absent
+  if (!getStackTrace()) {
+    return () => {};
+  }
+
   props = Object.assign(
     {
-      file: 'app.log',
-      console: true,
+      levels: ['trace', 'warn', 'error'],
+      depth: 3,
     },
     props,
   );
 
-  return (args) => {
-    fs.appendFileSync(props.file, `${util.format(...args)}\n`);
-    if (props.console) return args;
-    return null;
+  return (state) => {
+    if (!props.levels.some(level => level === state.label)) {
+      return;
+    }
+
+    let stacktrace = getStackTrace();
+
+    const lines = stacktrace.split('\n');
+    lines.splice(0, 4);
+    const { depth } = props;
+    if (depth && lines.length !== depth + 1) {
+      const shrink = lines.splice(0, depth);
+      stacktrace = shrink.join('\n');
+      if (lines.length) stacktrace += `\n    and ${lines.length} more`;
+    } else {
+      stacktrace = lines.join('\n');
+    }
+
+    state.stacktrace = stacktrace;
   };
 };
 ```
 
-**main.js**
+**stacktrace.js**
 ```javascript
-const log = require('log-n-roll');
-const fileTransport = require('./filetransport');
+const log = require('../dist/log-n-roll');
+const stacktracer = require('../src/plugins/stacktracer');
+
+log.use(stacktracer);
+
+const stacktracePrinter = () => (state) => {
+  // eslint-disable-next-line no-console
+  console.log(state.stacktrace);
+};
+
+log.use(stacktracePrinter);
+
+(function StackTraceTest() {
+  log.warn('test');
+}());
+```
+
+**Output**
+```
+    at StackTraceTest (C:\Users\u36\Dropbox\kutuluk\log-n-roll\examples\stacktrace.js:14:7)
+    at Object.<anonymous> (C:\Users\u36\Dropbox\kutuluk\log-n-roll\examples\stacktrace.js:15:2)
+    at Module._compile (module.js:635:30)
+    and 4 more
+test
+```
+
+**log-to-file.js**
+```javascript
+const fs = require('fs');
+const util = require('util');
+
+module.exports = (logger, props) => {
+  props = Object.assign(
+    {
+      file: 'app.log',
+      roll: true,
+    },
+    props,
+  );
+
+  return (state) => {
+    fs.appendFileSync(
+      props.file,
+      `${util.format(...state.args)}\n${state.stacktrace ? `${state.stacktrace}\n` : ''}`,
+    );
+    state.roll = props.roll;
+  };
+};
+```
+
+**transport.js**
+```javascript
+const log = require('../dist/log-n-roll');
+const stacktracer = require('../src/plugins/stacktracer');
+const logToFile = require('../src/plugins/log-to-file');
 
 log.use(log.prefixer);
 log.info('Hello, console!');
 
-log.use(fileTransport, { file: 'my.log' });
+log.use(stacktracer);
+log.use(logToFile, { file: 'my.log' });
 log.info('Hello, file!');
 
-log.use(fileTransport, { console: false });
-log.info('Goodbye, console!');
+log.use(logToFile, { roll: false });
+log.trace('Goodbye, console!');
 ```
 
 **Console output:**
 ```
-[17:59:14] INFO: Hello, console!
-[17:59:14] INFO: Hello, file!
+[15:57:11] INFO: Hello, console!
+[15:57:11] INFO: Hello, file!
 ```
 
 **my.log:**
 ```
-[17:59:14] INFO: Hello, file!
-[17:59:14] INFO: Goodbye, console!
+[15:57:11] INFO: Hello, file!
+[15:57:11] TRACE: Goodbye, console!
+    at Object.<anonymous> (C:\Users\u36\Dropbox\kutuluk\log-n-roll\examples\transport.js:13:5)
+    at Module._compile (module.js:635:30)
+    at Object.Module._extensions..js (module.js:646:10)
+    and 4 more
 ```

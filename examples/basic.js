@@ -6,7 +6,7 @@ log.trace('Trace shows stacktrace');
 log.use(log.prefixer);
 log.trace('Using any number of plugins adds to the stacktrace only one extra line');
 
-log.info("By default, the level of the root logger is 'trace'. All messages are displayed");
+log.info("By default, the level of the default logger is 'trace'. All messages are displayed");
 
 // Loading the processor
 let two = 2;
@@ -27,8 +27,16 @@ child.info('Messages below the level of the logger are ignored');
 child.level = 'info';
 child.info('The level of the logger can be changed at any time');
 
-child('anotherone').info('Any logger can be obtained from any logger');
-log('anotherone').debug('Anotherone logger has extended the level from the "child" logger');
-child('anotherone').info('Anotherone logger has extended the plugins props from the root (not child) logger');
+child().info(
+  'Root logger can be obtained from any logger: child() %s== log() %s== log',
+  child() === log() ? '=' : '!',
+  log() === log ? '=' : '!',
+);
 
-child().info('Root logger can be obtained from any logger');
+child('any').info(
+  'Any logger can be obtained from any logger: child("any") %s== log("any")',
+  child('any') === log('any') ? '=' : '!',
+);
+
+log('any').debug('Any logger has extended the level from the default logger');
+child('any').info('Any logger has extended the plugins props from the default logger');

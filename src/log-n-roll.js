@@ -26,8 +26,11 @@ function pluginsRoller(logger) {
 
   const rollers = [];
   plugins.forEach((plugin, index) => {
-    const rootProps = properties[index][''];
     const loggerProps = properties[index][loggerName];
+    if (loggerProps === null) return;
+
+    const rootProps = properties[index][''];
+
     if (rootProps || loggerProps) {
       rollers.push(plugin(logger, Object.assign({}, rootProps, loggerProps)));
     }
@@ -70,7 +73,7 @@ function rebuildMethods(logger) {
   }
 }
 
-function applyPlugin(logger, plugin, props) {
+function checkPlugin(plugin) {
   if (typeof plugin !== 'function') {
     throw new Error(`Invalid plugin: ${plugin}`);
   }
@@ -81,6 +84,12 @@ function applyPlugin(logger, plugin, props) {
     }
   });
 
+  return plugin;
+}
+
+function usePlugin(logger, plugin, props) {
+  plugin = checkPlugin(plugin);
+
   if (typeof plugin !== 'number') {
     // lazy plugging
     plugin = plugins.push(plugin) - 1;
@@ -90,6 +99,18 @@ function applyPlugin(logger, plugin, props) {
 
   properties[plugin][logger.sign] = Object.assign({}, properties[plugin][logger.sign], props);
   rebuildMethods(logger);
+  return logger;
+}
+
+function unusePlugin(logger, plugin) {
+  plugin = checkPlugin(plugin);
+
+  if (typeof plugin === 'number') {
+    properties[plugin][logger.sign] = null;
+    rebuildMethods(logger);
+  }
+
+  return logger;
 }
 
 function getLogger(logName, logLevel) {
@@ -99,7 +120,7 @@ function getLogger(logName, logLevel) {
       throw new TypeError(`Invalid name: ${name}`);
     }
 
-    return loggers[name] || getLogger(name, level || logger.level);
+    return loggers[name] || getLogger(name, level || logger().level);
   };
 
   Object.defineProperties(logger, {
@@ -128,7 +149,11 @@ function getLogger(logName, logLevel) {
       },
     },
     use: {
-      value: applyPlugin.bind(null, logger),
+      value: usePlugin.bind(null, logger),
+      writable: false,
+    },
+    unuse: {
+      value: unusePlugin.bind(null, logger),
       writable: false,
     },
   });
@@ -147,9 +172,11 @@ Object.defineProperties(log, {
         {
           format(state) {
             const timestamp = state.level === 1
-              ? `${`      +${state.delta}`.slice(-6)}ms`
-              : new Date(state.timestamp).toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, '$1');
-            return `[${timestamp}] ${state.label.toUpperCase()}${state.logger ? ` (${state.logger})` : ''}:`;
+              ? `${`    +${state.delta}ms`.slice(-8)}`
+              : new Date(state.timestamp).toTimeString().slice(0, 8);
+            const name = `       ${(state.logger || 'default').slice(0, 7)}`.slice(-7);
+            const label = `${` ${state.label.toUpperCase()}`.slice(-5)}`;
+            return `${timestamp} [${label}] ${name} :`;
           },
         },
         props,
@@ -157,6 +184,7 @@ Object.defineProperties(log, {
 
       return (state) => {
         const prefix = props.format(state);
+
         const { args } = state;
         if (args.length && typeof args[0] === 'string') {
           // concat prefix with first argument to support string substitutions
@@ -174,8 +202,9 @@ Object.defineProperties(log, {
     },
   },
   api: {
-    value: '0.1',
-    writable: false,
+    get() {
+      return '0.2';
+    },
   },
 });
 

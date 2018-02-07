@@ -1,6 +1,6 @@
 {
   "name": "log-n-roll",
-  "description": "Tiny <1kb logger for fun logging",
+  "description": "Tiny 1kb logger with slim api and ability of limitless extension",
   "keywords": [
     "log",
     "logger",
@@ -11,7 +11,7 @@
   "repository": "github:kutuluk/log-n-roll",
   "author": "Evgeniy Pavlov <mail@kutuluk.com>",
   "license": "MIT",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "source": "src/log-n-roll.js",
   "main": "dist/log-n-roll.js",
   "module": "dist/log-n-roll.m.js",

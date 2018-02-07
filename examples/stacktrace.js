@@ -1,7 +1,7 @@
 const log = require('../dist/log-n-roll');
-const stacktracer = require('../src/plugins/stacktracer');
+const stacktrace = require('../examples/plugins/log-stacktrace');
 
-log.use(stacktracer);
+log.use(stacktrace);
 
 const stacktracePrinter = () => (state) => {
   // eslint-disable-next-line no-console

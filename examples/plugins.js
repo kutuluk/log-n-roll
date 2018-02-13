@@ -7,13 +7,13 @@ const json = require('../examples/plugins/log-json');
 
 const toFile = require('../examples/plugins/to-file');
 
-log.use(stacktrace).use(meta, { source: 'plagins.js' }).use(log.prefixer).use(message)
+log.use(stacktrace).use(meta, { source: 'plugins.js' }).use(log.prefixer).use(message)
   .use(json, {
-    message: 'message',
+    message: '',
     timestamp: state => new Date(state.timestamp).toISOString(),
     level: 'label',
-    logger: 'logger',
-    meta: 'meta',
+    logger: '',
+    meta: '',
     stacktrace: state => (state.stacktrace ? state.stacktrace.split('\n') : []),
   });
 

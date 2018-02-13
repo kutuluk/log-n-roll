@@ -28,7 +28,7 @@ child.level = 'info';
 child.info('The level of the logger can be changed at any time');
 
 child().info(
-  'Root logger can be obtained from any logger: child() %s== log() %s== log',
+  'Default logger can be obtained from any logger: child() %s== log() %s== log',
   child() === log() ? '=' : '!',
   log() === log ? '=' : '!',
 );

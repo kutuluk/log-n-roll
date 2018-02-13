@@ -4,7 +4,7 @@
 
 [![NPM version](https://img.shields.io/npm/v/log-n-roll.svg?style=flat-square)](https://www.npmjs.com/package/log-n-roll)[![Build Status](https://img.shields.io/travis/kutuluk/log-n-roll/master.svg?style=flat-square)](https://travis-ci.org/kutuluk/log-n-roll)
 
-- **Tiny:** weighs less than kilobyte gzipped
+- **Tiny:** weighs about one kilobyte gzipped
 - **Pluggable:** one built-in plugin for pretty formatting and limitless possibilities for extension
 
 ## Note
@@ -70,7 +70,7 @@ child.level = 'info';
 child.info('The level of the logger can be changed at any time');
 
 child().info(
-  'Root logger can be obtained from any logger: child() %s== log() %s== log',
+  'Default logger can be obtained from any logger: child() %s== log() %s== log',
   child() === log() ? '=' : '!',
   log() === log ? '=' : '!',
 );
@@ -89,20 +89,20 @@ child('any').info('Any logger has extended the plugins props from the default lo
 Trace: Trace shows stacktrace
     at Object.<anonymous> (C:\Users\u36\Dropbox\kutuluk\log-n-roll\examples\basic.js:3:5)
     ...
-Trace: 17:08:01 [TRACE] default : Using any number of plugins adds to the stacktrace only one extra line
+Trace: 17:42:21.579 [trace] default : Using any number of plugins adds to the stacktrace only one extra line
     at Function.trace (C:\Users\u36\Dropbox\kutuluk\log-n-roll\dist\log-n-roll.js:1:730)
     at Object.<anonymous> (C:\Users\u36\Dropbox\kutuluk\log-n-roll\examples\basic.js:7:5)
     ...
-17:08:01 [ INFO] default : By default, the level of the default logger is 'trace'. All messages are displayed
-   +44ms [DEBUG] default : Debug shows the time difference from the last call of any logger method
-17:08:01 [ INFO] default : Placeholders are supported. Two = 2
-17:08:01 [ WARN] default : Warn message
-17:08:01 [ERROR] default : Error message
-17:08:01 [ INFO]   child : The level of the logger can be changed at any time
-17:08:01 [ INFO] default : Root logger can be obtained from any logger: child() === log() === log
-17:08:01 [ INFO]     any : Any logger can be obtained from any logger: child("any") === log("any")
-    +0ms [DEBUG]     any : Any logger has extended the level from the default logger
-17:08:01 [ INFO]     any : Any logger has extended the plugins props from the default logger
+17:42:21.579 [ info] default : By default, the level of the default logger is 'trace'. All messages are displayed
+       +54ms [debug] default : Debug shows the time difference from the last call of any logger method
+17:42:21.634 [ info] default : Placeholders are supported. Two = 2
+17:42:21.635 [ warn] default : Warn message
+17:42:21.635 [error] default : Error message
+17:42:21.636 [ info]   child : The level of the logger can be changed at any time
+17:42:21.636 [ info] default : Default logger can be obtained from any logger: child() === log() === log
+17:42:21.637 [ info]     any : Any logger can be obtained from any logger: child("any") === log("any")
+        +0ms [debug]     any : Any logger has extended the level from the default logger
+17:42:21.637 [ info]     any : Any logger has extended the plugins props from the default logger
 ```
 
 ## Plugins
@@ -182,17 +182,20 @@ module.exports = () => (state) => {
 
 **log-json.js**
 ```javascript
-module.exports = (logger, props) => (state) => {
-  const json = {};
-
+module.exports = (logger, props) => {
   const fields = Object.keys(props);
-  fields.forEach((name) => {
-    json[name] = typeof props[name] === 'function'
-      ? props[name](state)
-      : state[props[name]] || state[name];
-  });
 
-  state.json = JSON.stringify(json, null, '\t');
+  return (state) => {
+    const json = {};
+
+    fields.forEach((name) => {
+      json[name] = typeof props[name] === 'function'
+        ? props[name](state)
+        : state[props[name]] || state[name];
+    });
+
+    state.json = JSON.stringify(json, null, '\t');
+  };
 };
 ```
 
@@ -222,7 +225,7 @@ module.exports = (logger, props) => {
 };
 ```
 
-###An example of using these plugins
+### An example of using these plugins
 
 **plugins.js**
 ```javascript
@@ -265,20 +268,20 @@ child.trace({ tag: 'message3' }, 'Goodbye, %s', 'console!');
 
 **Console output:**
 ```
-17:06:19 [ INFO] default : Hello, console!
-17:06:19 [ INFO] default : Hello, file!
+17:45:35.926 [ info] default : Hello, console!
+17:45:35.926 [ info] default : Hello, file!
 ```
 
 **my.log:**
 ```
-17:06:19 [ INFO] default : Hello, file!
+17:45:35.926 [ info] default : Hello, file!
 {
 	"message": "Goodbye, console!",
-	"timestamp": "2018-02-07T13:06:19.333Z",
+	"timestamp": "2018-02-13T13:45:35.941Z",
 	"level": "trace",
 	"logger": "child",
 	"meta": {
-		"source": "plagins.js",
+		"source": "plugins.js",
 		"format": "json",
 		"tag": "message3"
 	},

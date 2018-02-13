@@ -113,14 +113,14 @@ function unusePlugin(logger, plugin) {
   return logger;
 }
 
-function getLogger(logName, logLevel) {
+function newLogger(logName, logLevel) {
   const logger = (name, level) => {
     name = name || '';
     if (typeof name !== 'string') {
       throw new TypeError(`Invalid name: ${name}`);
     }
 
-    return loggers[name] || getLogger(name, level || logger().level);
+    return loggers[name] || newLogger(name, level || logger().level);
   };
 
   Object.defineProperties(logger, {
@@ -150,11 +150,9 @@ function getLogger(logName, logLevel) {
     },
     use: {
       value: usePlugin.bind(null, logger),
-      writable: false,
     },
     unuse: {
       value: unusePlugin.bind(null, logger),
-      writable: false,
     },
   });
 
@@ -163,7 +161,7 @@ function getLogger(logName, logLevel) {
   return logger;
 }
 
-const log = getLogger('', 0);
+const log = newLogger('', 0);
 
 Object.defineProperties(log, {
   prefixer: {
@@ -171,12 +169,13 @@ Object.defineProperties(log, {
       props = Object.assign(
         {
           format(state) {
-            const timestamp = state.level === 1
-              ? `${`    +${state.delta}ms`.slice(-8)}`
-              : new Date(state.timestamp).toTimeString().slice(0, 8);
+            const { timestamp } = state;
+            const time = state.level === 1
+              ? `${`        +${state.delta}ms`.slice(-12)}`
+              : `${new Date(timestamp).toTimeString().slice(0, 8)}.${`${timestamp}`.slice(-3)}`;
             const name = `       ${(state.logger || 'default').slice(0, 7)}`.slice(-7);
-            const label = `${` ${state.label.toUpperCase()}`.slice(-5)}`;
-            return `${timestamp} [${label}] ${name} :`;
+            const label = `${` ${state.label}`.slice(-5)}`;
+            return `${time} [${label}] ${name} :`;
           },
         },
         props,
@@ -194,16 +193,10 @@ Object.defineProperties(log, {
         }
       };
     },
-    writable: false,
   },
   levels: {
     get() {
       return levels.splice();
-    },
-  },
-  api: {
-    get() {
-      return '0.2';
     },
   },
 });
